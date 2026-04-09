@@ -1,0 +1,41 @@
+name: Go-Docker-CI
+
+on:
+  push:
+    branches: [ main ]
+
+# 必须设置权限，才能把镜像推送到 GitHub 自己的仓库
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "步骤 1: 拉取代码"
+        uses: actions/checkout@v4
+
+      - name: "步骤 2: 登录到 GitHub 镜像仓库"
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "步骤 3: 提取元数据 (用于自动给镜像打版本号)"
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=sha,format=short
+
+      - name: "步骤 4: 构建并推送镜像"
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
